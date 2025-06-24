@@ -16,7 +16,7 @@ class SerpApiClient:
     
     def __init__(self):
         config = dotenv_values(".env")
-        if not 'SERP_API_KEY' in config:
+        if 'SERP_API_KEY' not in config:
             print('ERROR: Missing field \'SERP_API_KEY\' in .env')
             sys.exit(1)
         API_KEY = config['SERP_API_KEY']
@@ -30,7 +30,7 @@ class SerpApiClient:
         Sends a query to SerpAPI with optional location.
         
         Args:
-            q: Query to search
+            query: Query to search
             location: Location of search
             
         Returns:
@@ -195,10 +195,10 @@ def main():
     args = parser.parse_args()
     found = False
     
+    location = args.location or None
+    serp = SerpApiClient()
     with yaspin(Spinners.earth, text="Searching the web") as sp:
         try:
-            location = args.location or None
-            serp = SerpApiClient()
             res = serp.search_query(args.query, location)
         except Exception as e:
             sp.fail("💀 ")
