@@ -7,9 +7,13 @@ import string
 import sys
 from dataclasses import dataclass, field
 
+# Constant key used to extract AI Overview from SERP results
+
 AI_OVERVIEW = "ai_overview"
 
 class SerpApiClient:
+    """Handles connection and querying to SerpAPI"""
+    
     def __init__(self):
         config = dotenv_values(".env")
         if not 'SERP_API_KEY' in config:
@@ -22,6 +26,16 @@ class SerpApiClient:
         self.client = Client(api_key=API_KEY)
         
     def search_query(self, query: str, location=None) -> SerpResults:
+        """
+        Sends a query to SerpAPI with optional location.
+        
+        Args:
+            q: Query to search
+            location: Location of search
+            
+        Returns:
+            SerpResults object containing the search response.
+        """
         params = {
             "q": query,
         }
@@ -33,21 +47,31 @@ class SerpApiClient:
     
 @dataclass
 class MetricGroup:
+    """Stores count and list of matched items."""
     count: int = 0
     items: list[str] = field(default_factory=list)
 
 @dataclass
 class Metrics:
+    """Holds metrics grouped by type of match (headings, references, snippets)."""
     headings: MetricGroup = field(default_factory=MetricGroup)
     references: MetricGroup = field(default_factory=MetricGroup)
     snippets: int = 0
 
 class AIOverviewAnalyzer:
+    """Analyzes AI Overview blocks from SerpAPI results"""
     def __init__(self, company: str):
             self.company = company.lower()
             self.metrics = Metrics()
 
     def _deep_search(self, data) -> None:
+        """
+        Recursively search AI Overview data for matching content.
+        Handles nested dictionaries and lists.
+        
+        Args:
+            d: Data to search recursively
+        """
         if isinstance(data, dict):
             for k, v in data.items():
                 if k == 'references':
@@ -63,17 +87,35 @@ class AIOverviewAnalyzer:
                 self._deep_search(item)
                 
     def _process_references(self, references: list) -> None:
-            for ref in references:
-                if any(self.company in ref.get(field, "").lower() for field in ["title", "link", "snippet", "source"]):
-                    self.metrics.references.count += 1
-                    # Remove anchor from URL
-                    self.metrics.references.items.append(ref["link"].split('#')[0])
+        """
+        Check each reference for the company name and record matching links.
+        
+        Args:
+            references: List of references
+        """
+        for ref in references:
+            if any(self.company in ref.get(field, "").lower() for field in ["title", "link", "snippet", "source"]):
+                self.metrics.references.count += 1
+                # Remove anchor from URL
+                self.metrics.references.items.append(ref["link"].split('#')[0])
                     
     def _process_snippet(self, snippet: str) -> None:
-            if self.company in snippet.lower():
-                self.metrics.snippets += 1
+        """
+        Count the snippet if it contains the company name.
+        
+        Args:
+            snippet: Snippet to search for the company
+        """
+        if self.company in snippet.lower():
+            self.metrics.snippets += 1
                 
     def _process_title(self, title: str) -> None:
+        """
+        Count the heading if it contains the company name.
+        
+        Args:
+            title: Heading to search for the company
+        """
         if self.company in title.lower():
             self.metrics.headings.count += 1
             self.metrics.headings.items.append(title)
@@ -81,15 +123,40 @@ class AIOverviewAnalyzer:
 
     @staticmethod
     def _get_ai_overview(results: SerpResults) -> dict:
+        """
+        Extracts the AI Overview block from SerpAPI search results
+        
+        Args:
+            results: SerpResults Object returned by the search query
+            
+        Returns:
+            dict containing the ai_overview
+        """
         res_dict = results.as_dict()
         ai_overview = res_dict[AI_OVERVIEW]
         return ai_overview
 
     def check_overview(self, results: SerpResults) -> None:
+        """
+        Analyzes AI Overview from the search results for mentions of the company.
+        
+        Args:
+            results: SerpResults Object returned by the search query
+        """
         ai_overview = self._get_ai_overview(results)  
         self._deep_search(ai_overview)
         
+    def check_occurrence(self) -> bool:
+        """
+        Checks if company was found in any heading, snippet, or reference.
+        
+        Returns:
+            True/False depending on whether it was found
+        """
+        return self.metrics.snippets > 0 or self.metrics.headings.count > 0 or self.metrics.references.count > 0
+        
     def print_metrics(self):
+        """Prints metrics of company mentions in headings and references."""
         print(f'\nHeadings containing {self.company}: {self.metrics.headings.count}')
         for heading in self.metrics.headings.items:
             print(heading.rstrip(string.punctuation))
@@ -99,6 +166,9 @@ class AIOverviewAnalyzer:
             print(reference)
 
 def generate_parser() -> argparse.ArgumentParser:
+    """
+    Generates the CLI argument parser for the script
+    """
     parser = argparse.ArgumentParser(description="Search for query")
     
     parser.add_argument("-q", "--query", required=True, help="Your search query")
@@ -108,12 +178,19 @@ def generate_parser() -> argparse.ArgumentParser:
     return parser
     
 def is_ai_overview_present(res: SerpResults) -> bool:
+    """
+    Checks if ai_overview and its content is present in the result.
+    
+    Args:
+        res: SerpResults Object returned by the search query
+        
+    Returns:
+        True/False depending if ai_overview is present
+    """
     return AI_OVERVIEW in res and "text_blocks" in res[AI_OVERVIEW]
-
-def check_occurrence(analyzer: AIOverviewAnalyzer) -> bool:
-    return analyzer.metrics.snippets > 0 or analyzer.metrics.headings.count > 0 or analyzer.metrics.references.count > 0
     
 def main():
+    """Main function"""
     parser = generate_parser()
     args = parser.parse_args()
     found = False
@@ -143,7 +220,7 @@ def main():
             print(f'An error has occured while searching for the company in the results: {e}')
             sys.exit(1)
         
-        if check_occurrence(analyzer):
+        if analyzer.check_occurrence():
             print('Found')
             if args.metrics:
                 analyzer.print_metrics()
@@ -151,7 +228,6 @@ def main():
             print('Not Found')
     else:
         print('AI Overview Not Found')
-    
 
 if __name__ == "__main__":
     main()
