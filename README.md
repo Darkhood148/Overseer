@@ -19,7 +19,7 @@
 
 ```
 git clone https://github.com/Darkhood148/Overseer
-cd overseer
+cd Overseer
 ```
 
 ### 2. Create and Activate a Virtual Environment
