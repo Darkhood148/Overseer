@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 # Constant key used to extract AI Overview from SERP results
 
 AI_OVERVIEW = "ai_overview"
+TEXT_BLOCKS = "text_blocks"
 
 class SerpApiClient:
     """Handles connection and querying to SerpAPI"""
@@ -57,8 +58,8 @@ class SerpApiClient:
             dict containing the ai_overview
         """
         if AI_OVERVIEW in res:
-            if "text_blocks" in res[AI_OVERVIEW]:
-                return res[AI_OVERVIEW]["text_blocks"]
+            if TEXT_BLOCKS in res[AI_OVERVIEW]:
+                return res[AI_OVERVIEW]
             elif "page_token" in res[AI_OVERVIEW]:
                 params = {
                     "page_token": res[AI_OVERVIEW]["page_token"],
@@ -66,7 +67,7 @@ class SerpApiClient:
                     "no_cache": True
                 }
                 search_response = self.client.search(params)
-                if AI_OVERVIEW in search_response:
+                if AI_OVERVIEW in search_response and TEXT_BLOCKS in search_response[AI_OVERVIEW]:
                     return search_response[AI_OVERVIEW]
                 else:
                     return None
@@ -187,24 +188,6 @@ def generate_parser() -> argparse.ArgumentParser:
     parser.add_argument("-l", "--location", required=False, help="Optional location parameter")
     parser.add_argument("--metrics", action="store_true", help="Check how many times the company showed up in the AI Overview")
     return parser
-    
-def is_ai_overview_present(res: SerpResults) -> bool:
-    """
-    Checks if ai_overview and its content is present in the result.
-    
-    Args:
-        res: SerpResults Object returned by the search query
-        
-    Returns:
-        True/False depending if ai_overview is present
-    """
-    if AI_OVERVIEW in res:
-        # and "text_blocks" in res[AI_OVERVIEW]
-        if "text_blocks" in res[AI_OVERVIEW]:
-            return True
-        pass
-    else:
-        return False
     
 def main():
     """Main function"""
