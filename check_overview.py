@@ -38,12 +38,40 @@ class SerpApiClient:
         """
         params = {
             "q": query,
+            "no_cache": True
         }
         if location:
             params["location"] = location
         
         search_response = self.client.search(params)
         return search_response
+    
+    def get_ai_overview(self, res: SerpResults) -> dict:
+        """
+        Extracts the AI Overview block from SerpAPI search results
+        
+        Args:
+            results: SerpResults Object returned by the search query
+            
+        Returns:
+            dict containing the ai_overview
+        """
+        if AI_OVERVIEW in res:
+            if "text_blocks" in res[AI_OVERVIEW]:
+                return res[AI_OVERVIEW]["text_blocks"]
+            elif "page_token" in res[AI_OVERVIEW]:
+                params = {
+                    "page_token": res[AI_OVERVIEW]["page_token"],
+                    "engine": "google_ai_overview",
+                    "no_cache": True
+                }
+                search_response = self.client.search(params)
+                if AI_OVERVIEW in search_response:
+                    return search_response[AI_OVERVIEW]
+                else:
+                    return None
+        else:
+            return None
     
 @dataclass
 class MetricGroup:
@@ -119,31 +147,14 @@ class AIOverviewAnalyzer:
         if self.company in title.lower():
             self.metrics.headings.count += 1
             self.metrics.headings.items.append(title)
-                    
 
-    @staticmethod
-    def _get_ai_overview(results: SerpResults) -> dict:
-        """
-        Extracts the AI Overview block from SerpAPI search results
-        
-        Args:
-            results: SerpResults Object returned by the search query
-            
-        Returns:
-            dict containing the ai_overview
-        """
-        res_dict = results.as_dict()
-        ai_overview = res_dict[AI_OVERVIEW]
-        return ai_overview
-
-    def check_overview(self, results: SerpResults) -> None:
+    def check_overview(self, ai_overview: dict) -> None:
         """
         Analyzes AI Overview from the search results for mentions of the company.
         
         Args:
-            results: SerpResults Object returned by the search query
-        """
-        ai_overview = self._get_ai_overview(results)  
+            ai_overview: dict containing the ai_overview
+        """ 
         self._deep_search(ai_overview)
         
     def check_occurrence(self) -> bool:
@@ -187,7 +198,13 @@ def is_ai_overview_present(res: SerpResults) -> bool:
     Returns:
         True/False depending if ai_overview is present
     """
-    return AI_OVERVIEW in res and "text_blocks" in res[AI_OVERVIEW]
+    if AI_OVERVIEW in res:
+        # and "text_blocks" in res[AI_OVERVIEW]
+        if "text_blocks" in res[AI_OVERVIEW]:
+            return True
+        pass
+    else:
+        return False
     
 def main():
     """Main function"""
@@ -205,7 +222,8 @@ def main():
             print(f'An error has occured while searching: {e}')
             sys.exit(1)
         
-        if is_ai_overview_present(res):
+        ai_overview = serp.get_ai_overview(res)
+        if ai_overview:
             sp.ok("✅ ")
             found = True
         else:
@@ -215,7 +233,7 @@ def main():
         company = args.company
         analyzer = AIOverviewAnalyzer(company)
         try:
-            analyzer.check_overview(res)
+            analyzer.check_overview(ai_overview)
         except Exception as e:
             print(f'An error has occured while searching for the company in the results: {e}')
             sys.exit(1)
