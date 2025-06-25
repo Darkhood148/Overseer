@@ -18,7 +18,7 @@
 ### 1. Clone the Repository
 
 ```
-git clone <your-repo-url>
+git clone https://github.com/Darkhood148/Overseer
 cd overseer
 ```
 
