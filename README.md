@@ -42,7 +42,7 @@ Rename `.sample.env` to `.env` and specify your SerpAPI Key
 Run the Overseer CLI:
 
 ```
-python overseer.py -q "your search query" -c "Company Name" [-l "Location"] [--metrics]
+python3 overseer.py -q "your search query" -c "Company Name" [-l "Location"] [--metrics]
 
 
 Arguments:
