@@ -64,7 +64,6 @@ class SerpApiClient:
                 params = {
                     "page_token": res[AI_OVERVIEW]["page_token"],
                     "engine": "google_ai_overview",
-                    "no_cache": True
                 }
                 search_response = self.client.search(params)
                 if AI_OVERVIEW in search_response and TEXT_BLOCKS in search_response[AI_OVERVIEW]:
@@ -171,7 +170,7 @@ class AIOverviewAnalyzer:
         """Prints metrics of company mentions in headings and references."""
         print(f'\nHeadings containing {self.company}: {self.metrics.headings.count}')
         for heading in self.metrics.headings.items:
-            print(heading.rstrip(string.punctuation))
+            print(heading.rstrip(':'))
             
         print(f'\nReferences containing {self.company}: {self.metrics.references.count}')
         for reference in self.metrics.references.items:
@@ -222,11 +221,11 @@ def main():
             sys.exit(1)
         
         if analyzer.check_occurrence():
-            print('Found')
+            print(f'(True) Found {company} in Google AI Overview')
             if args.metrics:
                 analyzer.print_metrics()
         else:
-            print('Not Found')
+            print(f'(False) Did not find {company} in Google AI Overview')
     else:
         print('AI Overview Not Found')
 
